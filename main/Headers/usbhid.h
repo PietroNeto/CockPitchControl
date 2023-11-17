@@ -1,7 +1,6 @@
 /** @file usbhid.h
  * 
- * @brief Modulo de comunicação com IO expander USBHID, configura a interface de comunicação com o 
- * chip usando interface I2C. 
+ * @brief TODO DESC
  *
  * Autor Pietro Di Bernardo Neto
  */ 
@@ -33,7 +32,6 @@ typedef struct TU_ATTR_PACKED
     int8_t  analog8;         ///< Delta y  movement of left analog-stick
     uint32_t Digital;  ///< Buttons mask for currently pressed buttons
 }USBHidReport;
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEFINES

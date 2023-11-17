@@ -14,6 +14,12 @@
 // DEFINES
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// VID
+#define CONFIG_TINYUSB_DESC_CUSTOM_VID              0x1234
+
+// PID
+#define CONFIG_TINYUSB_DESC_CUSTOM_PID              0x5678
+
 // ID do dispositivo HID.
 #define HID_DEVICE_ID                       ( 0x0A )
 
@@ -50,6 +56,9 @@ HID_COLLECTION                              ( HID_COLLECTION_APPLICATION ),\
     HID_INPUT                               ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ) ,\
 HID_COLLECTION_END
 
+// Calculo do tamanho total do descriptor.
+#define TUSB_DESC_TOTAL_LEN     (TUD_CONFIG_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VARIAVEIS PRIVADAS DO MÓDULO
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +68,7 @@ static const char *TAG_UH = "USB HID";
 
 // Armazena a descrição do report usado no protocolo HID.
 const uint8_t hid_report_descriptor[] = {
-    TUD_HID_REPORT_DESC_GAMEPAD_custom(HID_REPORT_ID(HID_DEVICE_ID) )
+    TUD_HID_REPORT_DESC_TELEOP(HID_REPORT_ID(HID_DEVICE_ID) )
 };
 
 // Armazena a descrição do dipositivo usado no protocolo HID.
@@ -72,8 +81,8 @@ const tusb_desc_device_t device_descriptor = {
     .bDeviceSubClass    = 0,
     .bDeviceProtocol    = 0,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
-    .idVendor           = USB_ESPRESSIF_VID,
-    .idProduct          = USB_PID,
+    .idVendor           = CONFIG_TINYUSB_DESC_CUSTOM_VID,
+    .idProduct          = CONFIG_TINYUSB_DESC_CUSTOM_PID,
     .bcdDevice          = CONFIG_TINYUSB_DESC_BCD_DEVICE,
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,
