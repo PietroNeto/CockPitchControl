@@ -30,7 +30,7 @@ typedef struct TU_ATTR_PACKED
     int8_t  analog6;         ///< Delta y  movement of left analog-stick
     int8_t  analog7;         ///< Delta x  movement of left analog-stick
     int8_t  analog8;         ///< Delta y  movement of left analog-stick
-    uint32_t Digital;  ///< Buttons mask for currently pressed buttons
+    uint32_t Digital;        ///< Buttons mask for currently pressed buttons
 }USBHidReport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

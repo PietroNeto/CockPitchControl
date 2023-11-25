@@ -55,7 +55,7 @@ void vTaskRead(void *pvParameter)
         // readAnalogIn();
 
         // Faz a leitura da rede CAN.
-        // readCAN();
+        readCAN();
 
         // Pausa tarefa e passa a prioridade.
         vTaskDelay(pdMS_TO_TICKS(10));
