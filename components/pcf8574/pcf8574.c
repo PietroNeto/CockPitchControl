@@ -12,7 +12,7 @@
 #include "pcf8574.h"
 #include "esp_log.h"
 #include "driver/i2c.h"
-#include "sdkconfig.h"
+#include "hardware.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VARIAVEIS PRIVADAS DO MÓDULO
@@ -20,6 +20,21 @@
 
 // Tag da mensagem de log do módulo.
 static const char *TAG_I2C = "I2C PCF8574";
+
+// Cria a porta de comunicação para o Master.
+i2c_port_t i2c_master_port = I2C_MASTER_NUM;
+
+// Monta a Struct de configuração do barramento.
+i2c_config_t conf = {
+    .mode = I2C_MODE_MASTER,
+    .sda_io_num = I2C_MASTER_SDA_IO,
+    .scl_io_num = I2C_MASTER_SCL_IO,
+    .sda_pullup_en = GPIO_PULLUP_ENABLE,
+    .scl_pullup_en = GPIO_PULLUP_ENABLE,
+    .master = {
+        .clk_speed = I2C_MASTER_FREQ_HZ,
+    }
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FUNÇÕES PRIVADAS DO MÓDULO
@@ -39,7 +54,7 @@ uint8_t ReadIOs(uint8_t slave_addr)
     uint8_t I2CbyteRead;
 
     // Faz a Leitura de 1 Byte - PCF8574 tem apenas 8 portas, não é necessário mais do que 1 byte.
-    i2c_master_read_slave(I2C_MASTER_NUM, *I2CbyteRead, 1, uint8_t slave_addr);
+    i2c_master_read_slave(I2C_MASTER_NUM, &I2CbyteRead, 1, slave_addr);
 
     // Retorna a leitura.
     return I2CbyteRead;
@@ -103,7 +118,7 @@ void i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size, ui
         /////////////////////////////////////////////////
 
         // Salva o erro na flag do dispositivo.
-        guintDigitalPorts & PCF_ERROR_FLAG(slave_addr);
+        guintDigitalPorts &= PCF_ERROR_FLAG(slave_addr);
 
         // Envia um log de erro.
         ESP_LOGI(TAG_I2C, "Falha ao obter retorno de 0x%02X", slave_addr);
@@ -113,7 +128,20 @@ void i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size, ui
     i2c_cmd_link_delete(cmd);
 }
 
+/*!
+ * @brief Cria o driver do barramento de comunicação I2C.
+ *
+ * @param void
+ * @return void
+ */
+void i2c_master_init(void)
+{
+    // Configura periférico.
+    i2c_param_config(i2c_master_port, &conf);
 
+    // Cria o driver e salva o código de retorno.
+    i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+}
 
 /*!
  * @brief Configura e inicia o barramento de comunicação do Dispositivo.
