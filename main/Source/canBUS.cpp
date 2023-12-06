@@ -13,6 +13,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "can.h"
+#include "usbhid.h"
+#include "hardware.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEFINES ENUNS e STRUCT
@@ -123,6 +125,9 @@ void configDevice(enum DeviceType TypeOp)
 void CanDataTreat(void)
 {
     uint64_t jscan_data = 0;
+    uint16_t x_axis = 0;
+    uint8_t control = 0;
+    uint16_t y_axis = 0;
 
     for(int i=0; i<4;i++){
         jscan_data += canMsg.data[i]<<(8*i);
@@ -130,11 +135,130 @@ void CanDataTreat(void)
 
     //direito
     if((canMsg.can_id&0xFF)==0xA2){
-       
+
+        x_axis = 0;
+        control = 0;
+        y_axis = 0;
+
+        //eixo x
+        x_axis = (jscan_data & AXIS_MASK)>>6;
+        control = jscan_data & AXIS_CONTROL;
+        switch (control)
+        {
+        case 4:
+            gudtUsbHidReport.analog1 = (int8_t)((x_axis)*(-120)/1024);
+            break;
+        case 16:
+            gudtUsbHidReport.analog1 = (int8_t)((x_axis)*( 120)/1024);
+            break;
+        default:
+            gudtUsbHidReport.analog1 = 0;
+            break;
+        }
+
+        //eixo y
+        y_axis = (jscan_data>>16 & AXIS_MASK)>>6;
+        control = jscan_data>>16 & AXIS_CONTROL;
+        switch (control)
+        {
+        case 4:
+            gudtUsbHidReport.analog2 = (int8_t)((y_axis)*(-120)/1024);
+            break;
+        case 16:
+            gudtUsbHidReport.analog2 = (int8_t)((y_axis)*( 120)/1024);
+            break;
+        default:
+            gudtUsbHidReport.analog2 = 0;
+            break;
+        }
+        
+        //botoes
+        if((canMsg.data[5]&0x03)==0x01)
+        {
+            gudtUsbHidReport.Digital |= JSB4_DIR;
+        }
+        if((canMsg.data[5]&0x0C)==0x04)
+        {
+            gudtUsbHidReport.Digital |= JSB3_DIR;
+        }
+        if((canMsg.data[5]&0x30)==0x10)
+        {
+            gudtUsbHidReport.Digital |= JSB2_DIR;
+        }
+        if((canMsg.data[5]&0xC0)==0x40)
+        {
+            gudtUsbHidReport.Digital |= JSB1_DIR;
+        }
+        if((canMsg.data[6]&0xC0)==0x40)
+        {
+            gudtUsbHidReport.Digital |= JSB5_DIR;
+        }
     }
 
     //esquerdo
     if((canMsg.can_id&0xFF)==0xA1){
+
+        x_axis = 0;
+        control = 0;
+        y_axis = 0;
+
+        //eixo x
+        x_axis = (jscan_data & AXIS_MASK)>>6;
+        control = jscan_data & AXIS_CONTROL;
+        switch (control)
+        {
+        case 4:
+            gudtUsbHidReport.analog3 = (int8_t)((x_axis)*(-120)/1024);
+            break;
+        case 16:
+            gudtUsbHidReport.analog3 = (int8_t)((x_axis)*( 120)/1024);
+            break;
+        default:
+            gudtUsbHidReport.analog3 = 0;
+            break;
+        }
+
+        //eixo y
+        y_axis = (jscan_data>>16 & AXIS_MASK)>>6;
+        control = jscan_data>>16 & AXIS_CONTROL;
+        switch (control)
+        {
+        case 4:
+            gudtUsbHidReport.analog4 = (int8_t)((y_axis)*(-120)/1024);
+            break;
+        case 16:
+            gudtUsbHidReport.analog4 = (int8_t)((y_axis)*( 120)/1024);
+            break;
+        default:
+            gudtUsbHidReport.analog4 = 0;
+            break;
+        }
+        
+        //botoes
+        if((canMsg.data[5]&0x03)==0x01)
+        {
+            gudtUsbHidReport.Digital |= JSB4_ESQ;
+        }
+        if((canMsg.data[5]&0x0C)==0x04)
+        {
+            gudtUsbHidReport.Digital |= JSB3_ESQ;
+        }
+        if((canMsg.data[5]&0x30)==0x10)
+        {
+            gudtUsbHidReport.Digital |= JSB2_ESQ;
+        }
+        if((canMsg.data[5]&0xC0)==0x40)
+        {
+            gudtUsbHidReport.Digital |= JSB1_ESQ;
+        }
+        if((canMsg.data[6]&0xC0)==0x40)
+        {
+            gudtUsbHidReport.Digital |= JSB5_ESQ;
+        }
+    }
+
+    //escravo
+    if((canMsg.can_id&0xFF)==0xA0){
         
     }
 }

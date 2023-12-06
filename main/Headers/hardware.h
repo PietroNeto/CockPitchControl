@@ -39,6 +39,18 @@
 #define IO_EXPANDER_01                      0x20
 #define IO_EXPANDER_02                      0x21
 
+// Endereçamento dos botões do HID
+#define JSB1_DIR				            (1<<5)
+#define JSB2_DIR				            (1<<6)
+#define JSB3_DIR				            (1<<7)
+#define JSB4_DIR				            (1<<8)
+#define JSB5_DIR				            (1<<9)
+#define JSB1_ESQ				            (1<<15)
+#define JSB2_ESQ				            (1<<16)
+#define JSB3_ESQ				            (1<<17)
+#define JSB4_ESQ				            (1<<18)
+#define JSB5_ESQ				            (1<<19)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VARIAVEIS GLOBAIS DO MODULO
 ////////////////////////////////////////////////////////////////////////////////////////////////////
