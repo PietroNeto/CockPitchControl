@@ -104,6 +104,46 @@ USBHidReport gudtUsbHidReport;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*!
+ * @brief  Invocado quando recebida a solicitação GET HID REPORT DESCRIPTOR
+ *
+ * @param uint8_t instance
+ * @return Ponteiro de retorno do aplicativo para o descritor, cujo conteúdo deve existir por tempo 
+ *         suficiente para que a transferência seja concluída
+ */
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
+{
+    // We use only one interface and one HID report descriptor, so we can ignore parameter 'instance'
+    return hid_report_descriptor;
+}
+
+/*!
+ * @brief  Invocado quando recebe solicitação de controle GET_REPORT
+ *
+ * @param uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen
+ * @return Retornar zero fará com que a pilha bloqueie a solicitação
+ */ 
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen)
+{
+  (void) instance;
+  (void) report_id;
+  (void) report_type;
+  (void) buffer;
+  (void) reqlen;
+
+  return 0;
+}
+
+/*!
+ * @brief  Invocado quando recebeu solicitação de controle SET_REPORT ou dados recebidos no endpoint OUT (Report ID = 0, Type = 0)
+ *
+ * @param uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize
+ * @return void
+ */ 
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize)
+{
+}
+
+/*!
  * @brief Inicializa e instala o driver do HID.
  *
  * @param void

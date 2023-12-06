@@ -75,6 +75,15 @@ extern "C" void app_main(void)
 {
     // Inicialização dos módulos.
     //////////////////////////////////////////////////////////
+    
+    // Inicialização do HID.
+    initHID();
+
+    // Inicialização da CAN.
+    InitCAN();
+
+    // Inicialização do módulos de leitura Digital.
+    //InitDigitalRead();
 
     // Criação das tarefas.
     //////////////////////////////////////////////////////////

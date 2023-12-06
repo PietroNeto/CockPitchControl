@@ -71,6 +71,14 @@ bool FilterInJ1939Format(const struct can_frame  j1939Msg, uint32_t pgn_filter)
 	return false;
 }
 
+void InitCAN(void)
+{
+    mcp2515.init();
+	mcp2515.reset();
+	mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);
+	mcp2515.setNormalMode();
+}
+
 void readCAN(void)
 {
     // Faz a leitura do barramento da CAN.
