@@ -14,5 +14,5 @@ idf_component_register(
     INCLUDE_DIRS "Headers/"
     INCLUDE_DIRS "../components/mcp2515/"
     INCLUDE_DIRS "../components/pcf8574/"
-    REQUIRES driver freertos
+    REQUIRES driver freertos nvs_flash
 )

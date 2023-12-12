@@ -21,6 +21,9 @@
 // Tag da mensagem de log do módulo.
 static const char *TAG_I2C = "I2C PCF8574";
 
+// salva o endereço do chip com falha de comunicação.
+static uint8_t chipError;
+
 // Cria a porta de comunicação para o Master.
 i2c_port_t i2c_master_port = I2C_MASTER_NUM;
 
@@ -50,6 +53,9 @@ void i2c_master_init(void);
  */
 uint8_t ReadIOs(uint8_t slave_addr)
 {
+    // Reseta erro.
+    chipError = 0;
+
     // Variável que armazena o valor da leitura do I2C
     uint8_t I2CbyteRead;
 
@@ -118,10 +124,10 @@ void i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size, ui
         /////////////////////////////////////////////////
 
         // Salva o erro na flag do dispositivo.
-        guintDigitalPorts &= PCF_ERROR_FLAG(slave_addr);
+        chipError = slave_addr;
 
         // Envia um log de erro.
-        ESP_LOGI(TAG_I2C, "Falha ao obter retorno de 0x%02X", slave_addr);
+        ESP_LOGE(TAG_I2C, "Falha ao obter retorno de 0x%02X", slave_addr);
     }
 
     // Libera o barramento I2C.

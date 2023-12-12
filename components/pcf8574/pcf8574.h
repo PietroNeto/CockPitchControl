@@ -25,18 +25,13 @@
 #define ACK_VAL (i2c_ack_type_t)0x0                             /*!< I2C ack value */
 #define NACK_VAL (i2c_ack_type_t)0x1                            /*!< I2C nack value */
 #define DATA_LENGTH 8                                           /*!< Data buffer length of test buffer */
-#define RW_TEST_LENGTH 128                                      /*!< Data length for r/w test, [0,DATA_LENGTH] */
-
 #define IO_EXP_01_MASK 0xB7
 #define IO_EXP_02_MASK 0x3F
 
-// Flag de erro do chip
-#define PCF_ERROR_FLAG(pcf_address)         (unsigned int)( pcf_address & 0x03 <<  24)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VARIAVEIS GLOBAIS DO MODULO
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-uint32_t guintDigitalPorts;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FUNÇÕES DE INTERFACE COM O MÓDULO

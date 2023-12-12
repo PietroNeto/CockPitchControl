@@ -15,6 +15,8 @@
 #include "can.h"
 #include "usbhid.h"
 #include "hardware.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEFINES ENUNS e STRUCT
@@ -33,8 +35,20 @@ enum DeviceType
 // VARIAVEIS PRIVADAS DO MÓDULO
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// armazena o endereço do módulo.
+static uint8_t myaddress;
+
 // Armazena a mensagem CAN recebida.
 struct can_frame canMsg;
+
+// Armazena ranges dos analógicos.
+uint8_t analog_1_2;
+uint8_t analog_3_4;
+uint8_t analog_5_6;
+uint8_t analog_7_8;
+
+// Armazena tipo de operação.
+static bool isSlave;
 
 // Cria o objeto de controle da CAN.
 MCP2515 mcp2515;
@@ -46,6 +60,9 @@ bool FilterInJ1939Format(const struct can_frame j1939Msg, uint32_t pgn_filter);
 void configDevice(enum DeviceType TypeOp);
 void CanDataTreat(void);
 void CheckReceivedCanData(void);
+void CanInicConfigs(void);
+void CanSaveConfigs(void);
+void CanInicNvs(void);
 
 bool FilterInJ1939Format(const struct can_frame  j1939Msg, uint32_t pgn_filter)
 {
@@ -71,12 +88,33 @@ bool FilterInJ1939Format(const struct can_frame  j1939Msg, uint32_t pgn_filter)
 	return false;
 }
 
+bool FilterMyAddres(const struct can_frame  j1939Msg)
+{
+    // Extract J1939 CAN ID
+	uint32_t j1939_29_bit_can_id = j1939Msg.can_id & J1939_CAN_ID_MASK;
+    uint8_t  j1939_8_bit_source_addres = (j1939_29_bit_can_id & J1939_PS_MASK);
+
+    if(j1939_8_bit_source_addres == myaddress)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 void InitCAN(void)
 {
+    // Inicia MCP2515.
     mcp2515.init();
 	mcp2515.reset();
 	mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);
 	mcp2515.setNormalMode();
+
+    // Inicia NVS.
+    CanInicNvs();
+
+    // Carrega configurações.
+    CanInicConfigs();
 }
 
 void readCAN(void)
@@ -88,6 +126,93 @@ void readCAN(void)
     if(ret)
     {
         CheckReceivedCanData();
+    }
+}
+
+void writeCAN(void)
+{
+    if(isSlave)
+    {
+        // Formata frame de dados digitais
+        canMsg.can_id = 0x9CFF46A0;
+        canMsg.can_dlc = 5;
+        canMsg.data[0] = 0x10;
+        canMsg.data[1] = (gudtUsbHidReport.Digital       & 0xFF);
+        canMsg.data[2] = (gudtUsbHidReport.Digital >>  8 & 0xFF);
+        canMsg.data[3] = (gudtUsbHidReport.Digital >> 16 & 0xFF);
+        canMsg.data[4] = (gudtUsbHidReport.Digital >> 24 & 0xFF);
+
+
+        // Envia Frame
+        mcp2515.sendMessage(&canMsg);
+
+        // Formata frame de dados analógicos.
+        canMsg.can_id = 0x9CFF46A0;
+        canMsg.can_dlc = 8;
+        canMsg.data[0] = gudtUsbHidReport.analog1;
+        canMsg.data[1] = gudtUsbHidReport.analog2;
+        canMsg.data[2] = gudtUsbHidReport.analog3;
+        canMsg.data[3] = gudtUsbHidReport.analog4;
+        canMsg.data[4] = gudtUsbHidReport.analog5;
+        canMsg.data[5] = gudtUsbHidReport.analog6;
+        canMsg.data[6] = gudtUsbHidReport.analog7;
+        canMsg.data[7] = gudtUsbHidReport.analog8;
+
+        // Envia Frame
+        mcp2515.sendMessage(&canMsg);
+    }
+}
+
+void CheckReceivedCanData(void)
+{
+    if (FilterInJ1939Format(canMsg, JSPGN) && !isSlave)
+    {
+        if(IS_JS_DEFAULT_ADDRESS(canMsg.can_id))
+        {
+            if((canMsg.data[5]&0x03)==0x01 && (canMsg.data[5]&0x30)==0x10)
+            {
+                configDevice(JoyStick_Left);
+            }
+            if((canMsg.data[5]&0xC0)==0x40 && (canMsg.data[5]&0x0C)==0x04)
+            {
+                configDevice(JoyStick_Rigth);
+            }
+        } 
+        else 
+        {
+            CanDataTreat();
+        }
+    }
+    else if(FilterMyAddres(canMsg))
+    {
+        // mensagem do tipo alterar endereço.
+        if(canMsg.data[0] == 0x30)
+        {
+            myaddress = canMsg.data[1];
+        }
+
+        // mensagem do tipo alterar range analog.
+        if(canMsg.data[0] == 0x40)
+        {
+            analog_1_2 = canMsg.data[1];
+            analog_3_4 = canMsg.data[2];
+            analog_5_6 = canMsg.data[3];
+            analog_7_8 = canMsg.data[4];
+        }
+
+        // mensagem do tipo tornar slave.
+        if(canMsg.data[0] == 0x50 && canMsg.data[7] == 0xFF)
+        {
+            isSlave = true;
+        }
+
+        // mensagem do tipo tornar master.
+        if(canMsg.data[0] == 0x50 && canMsg.data[7] == 0x00)
+        {
+            isSlave = false;
+        }
+
+        CanSaveConfigs();
     }
 }
 
@@ -127,7 +252,7 @@ void configDevice(enum DeviceType TypeOp)
         break;
     }
 
-    mcp2515.readMessage(&canMsg);
+    mcp2515.sendMessage(&canMsg);
 }
 
 void CanDataTreat(void)
@@ -136,14 +261,15 @@ void CanDataTreat(void)
     uint16_t x_axis = 0;
     uint8_t control = 0;
     uint16_t y_axis = 0;
+    gudtUsbHidReport.Digital = 0;
 
     for(int i=0; i<4;i++){
         jscan_data += canMsg.data[i]<<(8*i);
     }
 
     //direito
-    if((canMsg.can_id&0xFF)==0xA2){
-
+    if((canMsg.can_id&0xFF)==0xA2)
+    {
         x_axis = 0;
         control = 0;
         y_axis = 0;
@@ -202,10 +328,9 @@ void CanDataTreat(void)
             gudtUsbHidReport.Digital |= JSB5_DIR;
         }
     }
-
     //esquerdo
-    if((canMsg.can_id&0xFF)==0xA1){
-
+    else if((canMsg.can_id&0xFF)==0xA1)
+    {
         x_axis = 0;
         control = 0;
         y_axis = 0;
@@ -264,31 +389,91 @@ void CanDataTreat(void)
             gudtUsbHidReport.Digital |= JSB5_ESQ;
         }
     }
-
     //escravo
-    if((canMsg.can_id&0xFF)==0xA0){
+    else if((canMsg.can_id&0xFF)==0xA0)
+    {
         
     }
 }
 
-void CheckReceivedCanData(void)
+void CanInicConfigs(void)
 {
-    if (FilterInJ1939Format(canMsg, JSPGN))
+    int32_t analog_range;
+    int32_t configs;
+
+    // Open
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+
+    if (err == ESP_OK) 
     {
-        if(IS_JS_DEFAULT_ADDRESS(canMsg.can_id))
+        // Carrega ranges do ADCs
+        err = nvs_get_i32(my_handle, "analog_range", &analog_range);
+        if (err == ESP_OK) 
         {
-            if((canMsg.data[5]&0x03)==0x01 && (canMsg.data[5]&0x30)==0x10)
-            {
-                configDevice(JoyStick_Left);
-            }
-            if((canMsg.data[5]&0xC0)==0x40 && (canMsg.data[5]&0x0C)==0x04)
-            {
-                configDevice(JoyStick_Rigth);
-            }
-        } 
-        else 
-        {
-            CanDataTreat();
+            analog_1_2 = (analog_range >> 0  & 0xFF);
+            analog_3_4 = (analog_range >> 8  & 0xFF);
+            analog_5_6 = (analog_range >> 16 & 0xFF);
+            analog_7_8 = (analog_range >> 24 & 0xFF);
         }
+        else
+        {
+            // Carrega valores Defaults.
+            analog_1_2 = 0xEE;
+            analog_3_4 = 0xEE;
+            analog_5_6 = 0xEE;
+            analog_7_8 = 0xEE;
+        }
+
+        // Carrega valores de configurações.
+        err = nvs_get_i32(my_handle, "configs", &configs);
+        if (err == ESP_OK) 
+        {
+            myaddress = (configs >> 0  & 0xFF);
+            isSlave   = (configs >> 8  & 0x01);
+        }
+        else
+        {
+            // Carrega valores Defaults.
+            myaddress = TELEOP_DEFAULT_ADDRESS;
+            isSlave = false;
+        }
+                
+    }
+}
+
+void CanSaveConfigs(void)
+{
+    int32_t analog_range = (analog_7_8<<24 | analog_5_6<<16 | analog_3_4<<8 | analog_1_2);
+    int32_t configs = (isSlave<<8 | myaddress);
+
+    // Open
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (err == ESP_OK) 
+    {
+        // Salva valores de range do ADC.
+        err = nvs_set_i8(my_handle, "analog_range", analog_range);
+        // Commit written value.
+        err = nvs_commit(my_handle);
+
+        // Salva valores de configuração.
+        err = nvs_set_i8(my_handle, "configs", configs);
+        // Commit written value.
+        err = nvs_commit(my_handle);
+    }
+    // Close
+    nvs_close(my_handle);
+}
+
+void CanInicNvs(void)
+{
+    // Initialize NVS
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS partition was truncated and needs to be erased
+        // Retry nvs_flash_init
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
     }
 }

@@ -50,6 +50,9 @@
 #define JSB3_ESQ				            (1<<17)
 #define JSB4_ESQ				            (1<<18)
 #define JSB5_ESQ				            (1<<19)
+#define BTN_EXT1				            (1<<30)
+#define BTN_EXT2				            (1<<31)
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VARIAVEIS GLOBAIS DO MODULO

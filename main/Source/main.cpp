@@ -11,12 +11,12 @@
 #include "sdkconfig.h"
 #include "esp_chip_info.h"
 #include "esp_system.h"
-#include "digitalin.h"
-#include "analogin.h"
 #include "canBUS.h"
 
 extern "C" {
     #include "usbhid.h"
+    #include "digitalin.h"
+    #include "analogin.h"
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,13 +52,16 @@ void vTaskRead(void *pvParameter)
     while (true)
     {
         // Faz a leitura das entradas Digitais.
-        // readDigitalIn();
+        readDigital();
 
         // Faz a leitura das entradas Analógicas.
         // readAnalogIn();
 
         // Faz a leitura da rede CAN.
         readCAN();
+
+        // Faz a escrita na rede CAN (somente slave).
+        writeCAN();
 
         // Pausa tarefa e passa a prioridade.
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -83,7 +86,7 @@ extern "C" void app_main(void)
     InitCAN();
 
     // Inicialização do módulos de leitura Digital.
-    //InitDigitalRead();
+    InitDigitalIn();
 
     // Criação das tarefas.
     //////////////////////////////////////////////////////////
