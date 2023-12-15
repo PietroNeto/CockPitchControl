@@ -4,7 +4,6 @@ set(srcs
     "Source/digitalin.c"
     "Source/digitalout.c"
     "Source/hardware.c"
-    "Source/init.c"
     "Source/main.cpp"
     "Source/usbhid.c"
 )
@@ -16,3 +15,11 @@ idf_component_register(
     INCLUDE_DIRS "../components/pcf8574/"
     REQUIRES driver freertos nvs_flash
 )
+
+if("$ENV{SLAVE_BUILD}" STREQUAL "1")
+    message(STATUS "Building for SLAVE")
+    add_compile_definitions(CONFIG_SLAVE=1)
+else()
+    message(STATUS "Building for MASTER")
+    add_compile_definitions(CONFIG_MASTER=1)
+endif()

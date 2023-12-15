@@ -17,6 +17,8 @@
 #include "hardware.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "digitalin.h"
+#include "analogin.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEFINES ENUNS e STRUCT
@@ -41,17 +43,14 @@ static uint8_t myaddress;
 // Armazena a mensagem CAN recebida.
 struct can_frame canMsg;
 
-// Armazena ranges dos analógicos.
-uint8_t analog_1_2;
-uint8_t analog_3_4;
-uint8_t analog_5_6;
-uint8_t analog_7_8;
-
 // Armazena tipo de operação.
 static bool isSlave;
 
 // Cria o objeto de controle da CAN.
 MCP2515 mcp2515;
+
+// Indice da ultima escrita na CAN.
+static uint8_t IndexAnalog = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FUNÇÕES PRIVADAS DO MÓDULO
@@ -133,33 +132,36 @@ void writeCAN(void)
 {
     if(isSlave)
     {
+        int8_t analog_values[] = {analog1, analog2, analog3, analog4, analog5, analog6, analog7, analog8};
+
         // Formata frame de dados digitais
-        canMsg.can_id = 0x9CFF46A0;
-        canMsg.can_dlc = 5;
-        canMsg.data[0] = 0x10;
-        canMsg.data[1] = (gudtUsbHidReport.Digital       & 0xFF);
-        canMsg.data[2] = (gudtUsbHidReport.Digital >>  8 & 0xFF);
-        canMsg.data[3] = (gudtUsbHidReport.Digital >> 16 & 0xFF);
-        canMsg.data[4] = (gudtUsbHidReport.Digital >> 24 & 0xFF);
-
-
-        // Envia Frame
-        mcp2515.sendMessage(&canMsg);
-
-        // Formata frame de dados analógicos.
-        canMsg.can_id = 0x9CFF46A0;
+        canMsg.can_id = 0x8CFDD6A0;
         canMsg.can_dlc = 8;
-        canMsg.data[0] = gudtUsbHidReport.analog1;
-        canMsg.data[1] = gudtUsbHidReport.analog2;
-        canMsg.data[2] = gudtUsbHidReport.analog3;
-        canMsg.data[3] = gudtUsbHidReport.analog4;
-        canMsg.data[4] = gudtUsbHidReport.analog5;
-        canMsg.data[5] = gudtUsbHidReport.analog6;
-        canMsg.data[6] = gudtUsbHidReport.analog7;
-        canMsg.data[7] = gudtUsbHidReport.analog8;
+        canMsg.data[0] = 0x10;
+        canMsg.data[1] = IndexAnalog;
+        canMsg.data[2] = analog_values[IndexAnalog];
+        canMsg.data[3] = analog_values[IndexAnalog+1];
+        canMsg.data[4] = (gudtUsbHidReport.Digital       & 0xFF);
+        canMsg.data[5] = (gudtUsbHidReport.Digital >>  8 & 0xFF);
+        canMsg.data[6] = (gudtUsbHidReport.Digital >> 16 & 0xFF);
+        canMsg.data[7] = (gudtUsbHidReport.Digital >> 24 & 0xFF);
+        
+
+        printf("%#010lx ", canMsg.can_id);
+        printf(" [%d]  ", sizeof(canMsg.data));
+        for(int i=0; i<8;i++){
+            printf("%#010x ", canMsg.data[i]);
+        }
+        printf("\n");
+
 
         // Envia Frame
         mcp2515.sendMessage(&canMsg);
+        IndexAnalog += 2;
+        if(IndexAnalog >= 8)
+        {
+            IndexAnalog = 0;
+        }
     }
 }
 
@@ -261,7 +263,6 @@ void CanDataTreat(void)
     uint16_t x_axis = 0;
     uint8_t control = 0;
     uint16_t y_axis = 0;
-    gudtUsbHidReport.Digital = 0;
 
     for(int i=0; i<4;i++){
         jscan_data += canMsg.data[i]<<(8*i);
@@ -280,13 +281,13 @@ void CanDataTreat(void)
         switch (control)
         {
         case 4:
-            gudtUsbHidReport.analog1 = (int8_t)((x_axis)*(-120)/1024);
+            analog1 = (int8_t)((x_axis)*(-120)/1024);
             break;
         case 16:
-            gudtUsbHidReport.analog1 = (int8_t)((x_axis)*( 120)/1024);
+            analog1 = (int8_t)((x_axis)*( 120)/1024);
             break;
         default:
-            gudtUsbHidReport.analog1 = 0;
+            analog1 = 0;
             break;
         }
 
@@ -296,36 +297,56 @@ void CanDataTreat(void)
         switch (control)
         {
         case 4:
-            gudtUsbHidReport.analog2 = (int8_t)((y_axis)*(-120)/1024);
+            analog2 = (int8_t)((y_axis)*(-120)/1024);
             break;
         case 16:
-            gudtUsbHidReport.analog2 = (int8_t)((y_axis)*( 120)/1024);
+            analog2 = (int8_t)((y_axis)*( 120)/1024);
             break;
         default:
-            gudtUsbHidReport.analog2 = 0;
+            analog2 = 0;
             break;
         }
         
         //botoes
         if((canMsg.data[5]&0x03)==0x01)
         {
-            gudtUsbHidReport.Digital |= JSB4_DIR;
+            gCANDigitalButtons |= JSB_CAN_4_DIR;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_4_DIR;
         }
         if((canMsg.data[5]&0x0C)==0x04)
         {
-            gudtUsbHidReport.Digital |= JSB3_DIR;
+            gCANDigitalButtons |= JSB_CAN_3_DIR;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_3_DIR;
         }
         if((canMsg.data[5]&0x30)==0x10)
         {
-            gudtUsbHidReport.Digital |= JSB2_DIR;
+            gCANDigitalButtons |= JSB_CAN_2_DIR;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_2_DIR;
         }
         if((canMsg.data[5]&0xC0)==0x40)
         {
-            gudtUsbHidReport.Digital |= JSB1_DIR;
+            gCANDigitalButtons |= JSB_CAN_1_DIR;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_1_DIR;
         }
         if((canMsg.data[6]&0xC0)==0x40)
         {
-            gudtUsbHidReport.Digital |= JSB5_DIR;
+            gCANDigitalButtons |= JSB_CAN_5_DIR;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_5_DIR;
         }
     }
     //esquerdo
@@ -341,13 +362,13 @@ void CanDataTreat(void)
         switch (control)
         {
         case 4:
-            gudtUsbHidReport.analog3 = (int8_t)((x_axis)*(-120)/1024);
+            analog3 = (int8_t)((x_axis)*(-120)/1024);
             break;
         case 16:
-            gudtUsbHidReport.analog3 = (int8_t)((x_axis)*( 120)/1024);
+            analog3 = (int8_t)((x_axis)*( 120)/1024);
             break;
         default:
-            gudtUsbHidReport.analog3 = 0;
+            analog3 = 0;
             break;
         }
 
@@ -357,43 +378,84 @@ void CanDataTreat(void)
         switch (control)
         {
         case 4:
-            gudtUsbHidReport.analog4 = (int8_t)((y_axis)*(-120)/1024);
+            analog4 = (int8_t)((y_axis)*(-120)/1024);
             break;
         case 16:
-            gudtUsbHidReport.analog4 = (int8_t)((y_axis)*( 120)/1024);
+            analog4 = (int8_t)((y_axis)*( 120)/1024);
             break;
         default:
-            gudtUsbHidReport.analog4 = 0;
+            analog4 = 0;
             break;
         }
         
         //botoes
         if((canMsg.data[5]&0x03)==0x01)
         {
-            gudtUsbHidReport.Digital |= JSB4_ESQ;
+            gCANDigitalButtons |= JSB_CAN_4_ESQ;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_4_ESQ;
         }
         if((canMsg.data[5]&0x0C)==0x04)
         {
-            gudtUsbHidReport.Digital |= JSB3_ESQ;
+            gCANDigitalButtons |= JSB_CAN_3_ESQ;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_3_ESQ;
         }
         if((canMsg.data[5]&0x30)==0x10)
         {
-            gudtUsbHidReport.Digital |= JSB2_ESQ;
+            gCANDigitalButtons |= JSB_CAN_2_ESQ;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_2_ESQ;
         }
         if((canMsg.data[5]&0xC0)==0x40)
         {
-            gudtUsbHidReport.Digital |= JSB1_ESQ;
+            gCANDigitalButtons |= JSB_CAN_1_ESQ;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_1_ESQ;
         }
         if((canMsg.data[6]&0xC0)==0x40)
         {
-            gudtUsbHidReport.Digital |= JSB5_ESQ;
+            gCANDigitalButtons |= JSB_CAN_5_ESQ;
+        }
+        else
+        {
+            gCANDigitalButtons &= ~JSB_CAN_5_ESQ;
         }
     }
     //escravo
     else if((canMsg.can_id&0xFF)==0xA0)
     {
-        
+        if(canMsg.data[0] == 0x10)
+        {
+            uint32_t slaveDigitalRead = (canMsg.data[4] | canMsg.data[5] << 8 | canMsg.data[6] << 16 | canMsg.data[7] << 24);
+            for(uint8_t i=0; i<32; i++)
+            {
+                if(slaveDigitalRead & 1<<i)
+                {
+                    gCANDigitalButtons |= (1<<i);
+                }
+                else
+                {
+                    gCANDigitalButtons &= ~(1<<i);
+                }
+            }
+        }
     }
+
+    printf("%#010lx ", canMsg.can_id);
+    printf(" [%d]  ", sizeof(canMsg.data));
+    for(int i=0; i<8;i++){
+        printf("%#010x ", canMsg.data[i]);
+    }
+    printf("\n");
 }
 
 void CanInicConfigs(void)
@@ -419,10 +481,10 @@ void CanInicConfigs(void)
         else
         {
             // Carrega valores Defaults.
-            analog_1_2 = 0xEE;
-            analog_3_4 = 0xEE;
-            analog_5_6 = 0xEE;
-            analog_7_8 = 0xEE;
+            analog_1_2 = (DEFAULT_ANALOG_1 << 4 | DEFAULT_ANALOG_2);
+            analog_3_4 = (DEFAULT_ANALOG_3 << 4 | DEFAULT_ANALOG_4);
+            analog_5_6 = (DEFAULT_ANALOG_5 << 4 | DEFAULT_ANALOG_6);
+            analog_7_8 = (DEFAULT_ANALOG_7 << 4 | DEFAULT_ANALOG_8);
         }
 
         // Carrega valores de configurações.
@@ -436,7 +498,7 @@ void CanInicConfigs(void)
         {
             // Carrega valores Defaults.
             myaddress = TELEOP_DEFAULT_ADDRESS;
-            isSlave = false;
+            isSlave = IS_SLAVE;
         }
                 
     }

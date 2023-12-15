@@ -13,6 +13,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "driver/i2c.h"
 #include "driver/spi_master.h"
+#include "sdkconfig.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEFINES
@@ -40,18 +41,63 @@
 #define IO_EXPANDER_02                      0x21
 
 // Endereçamento dos botões do HID
-#define JSB1_DIR				            (1<<5)
-#define JSB2_DIR				            (1<<6)
-#define JSB3_DIR				            (1<<7)
-#define JSB4_DIR				            (1<<8)
-#define JSB5_DIR				            (1<<9)
-#define JSB1_ESQ				            (1<<15)
-#define JSB2_ESQ				            (1<<16)
-#define JSB3_ESQ				            (1<<17)
-#define JSB4_ESQ				            (1<<18)
-#define JSB5_ESQ				            (1<<19)
-#define BTN_EXT1				            (1<<30)
-#define BTN_EXT2				            (1<<31)
+//IO
+#define JSB_IO_1_DIR				            (1<<5)
+#define JSB_IO_2_DIR				            (1<<6)
+#define JSB_IO_3_DIR				            (1<<7)
+#define JSB_IO_4_DIR				            (1<<8)
+#define JSB_IO_5_DIR				            (1<<9)
+#define JSB_IO_1_ESQ				            (1<<15)
+#define JSB_IO_2_ESQ				            (1<<16)
+#define JSB_IO_3_ESQ				            (1<<17)
+#define JSB_IO_4_ESQ				            (1<<18)
+#define JSB_IO_5_ESQ				            (1<<19)
+#define BTN_EXT1				                (1<<30)
+#define BTN_EXT2				                (1<<31)
+//CAN
+#define JSB_CAN_1_DIR				            (1<<5)
+#define JSB_CAN_2_DIR				            (1<<6)
+#define JSB_CAN_3_DIR				            (1<<7)
+#define JSB_CAN_4_DIR				            (1<<8)
+#define JSB_CAN_5_DIR				            (1<<9)
+#define JSB_CAN_1_ESQ				            (1<<15)
+#define JSB_CAN_2_ESQ				            (1<<16)
+#define JSB_CAN_3_ESQ				            (1<<17)
+#define JSB_CAN_4_ESQ				            (1<<18)
+#define JSB_CAN_5_ESQ				            (1<<19)
+//ANALOG END DIGITAL BUTTON
+#define JSB_ANALOG_1    				        (5)
+#define JSB_ANALOG_2    				        (6)
+#define JSB_ANALOG_3    				        (7)
+#define JSB_ANALOG_4    				        (8)
+#define JSB_ANALOG_5				            (15)
+#define JSB_ANALOG_6				            (16)
+#define JSB_ANALOG_7				            (17)
+#define JSB_ANALOG_8				            (18)
+
+#ifdef CONFIG_MASTER
+#define DEFAULT_ANALOG_1                    0X0F
+#define DEFAULT_ANALOG_2                    0X0F
+#define DEFAULT_ANALOG_3                    0X0F
+#define DEFAULT_ANALOG_4                    0X0F
+#define DEFAULT_ANALOG_5                    0X0F
+#define DEFAULT_ANALOG_6                    0X0F
+#define DEFAULT_ANALOG_7                    0X0F
+#define DEFAULT_ANALOG_8                    0X0F
+#define IS_SLAVE                            false
+#define TASK_CAN_TIME                       1
+#elif CONFIG_SLAVE
+#define DEFAULT_ANALOG_1                    0X00
+#define DEFAULT_ANALOG_2                    0X00
+#define DEFAULT_ANALOG_3                    0X00
+#define DEFAULT_ANALOG_4                    0X00
+#define DEFAULT_ANALOG_5                    0X00
+#define DEFAULT_ANALOG_6                    0X00
+#define DEFAULT_ANALOG_7                    0X00
+#define DEFAULT_ANALOG_8                    0X00
+#define IS_SLAVE                            true
+#define TASK_CAN_TIME                       20
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

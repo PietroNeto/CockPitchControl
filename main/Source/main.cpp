@@ -17,6 +17,7 @@ extern "C" {
     #include "usbhid.h"
     #include "digitalin.h"
     #include "analogin.h"
+    #include "hardware.h"
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,20 +50,32 @@ void vTaskHID(void *pvParameter)
  */
 void vTaskRead(void *pvParameter)
 {   
+    uint8_t task_count = 0;
+    
     while (true)
     {
         // Faz a leitura das entradas Digitais.
         readDigital();
 
         // Faz a leitura das entradas Analógicas.
-        // readAnalogIn();
+        readAnalog();
 
         // Faz a leitura da rede CAN.
         readCAN();
 
-        // Faz a escrita na rede CAN (somente slave).
-        writeCAN();
+#ifdef CONFIG_SLAVE
+        // incrementa contador;
+        task_count++;
 
+        if(task_count >= TASK_CAN_TIME)
+        {
+            // Faz a escrita na rede CAN (somente slave).
+            writeCAN();
+
+            // Reseta contador.
+            task_count = 0;
+        }
+#endif   
         // Pausa tarefa e passa a prioridade.
         vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -85,14 +98,18 @@ extern "C" void app_main(void)
     // Inicialização da CAN.
     InitCAN();
 
-    // Inicialização do módulos de leitura Digital.
+    // Inicialização do módulo de leitura Digital.
     InitDigitalIn();
+
+    // Inicialização do módulo de leitura Analógica.
+    InitAnalogIn();
 
     // Criação das tarefas.
     //////////////////////////////////////////////////////////
-    
+#ifdef CONFIG_MASTER
     // Cria e inicia a tarefa de escrita do HID
     xTaskCreate(&vTaskHID, "vTaskHID", 2048, NULL, 5, NULL);
+#endif
     
     // Cria e inicia a tarefa das leituras
     xTaskCreate(&vTaskRead, "vTaskRead", 2048, NULL, 5, NULL);
